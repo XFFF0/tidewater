@@ -14,11 +14,18 @@ if ( /[?&]bench\b/.test( location.search ) ) {
 }
 
 const ui = new UI();
+{
+
+	const _sl = ui.setLoading.bind( ui );
+	ui.setLoading = ( p, t, u ) => { if ( t ) console.log( 'load ' + Math.round( p * 100 ) + '% ' + t ); return _sl( p, t, u ); };
+
+}
 const app = new App();
 window.__ui = ui;
 
 app.init( ( p, text, until ) => ui.setLoading( p, text, until ) ).then( async () => {
 
+	console.log( 'init done' );
 	app.ui = new AppUI( app, ui );
 	ui.setLoading( 1, 'Ready' );
 	await ui.hideLoader();
@@ -38,6 +45,7 @@ app.init( ( p, text, until ) => ui.setLoading( p, text, until ) ).then( async ()
 		app.start();
 
 	}
+	console.log( 'started, showing start overlay' );
 	ui.showStartOverlay( () => {
 
 		app.input.requestLock();

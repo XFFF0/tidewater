@@ -10,7 +10,7 @@ final class DebugModel: ObservableObject {
         DispatchQueue.main.async {
             if s.hasPrefix("hb ") { self.beat = s; return }
             self.lines.append(s)
-            if self.lines.count > 14 { self.lines.removeFirst() }
+            if self.lines.count > 18 { self.lines.removeFirst() }
         }
     }
 }
@@ -68,15 +68,43 @@ private let debugScript = #"""
   });
   window.addEventListener('error', function(e){ send('ERR ' + e.message + ' @' + String(e.filename||'').split('/').pop() + ':' + e.lineno); });
   window.addEventListener('unhandledrejection', function(e){ var r = e.reason; send('REJ ' + ((r && (r.stack || r.message)) || r)); });
-  var frames = 0, last = 0, raf = window.requestAnimationFrame.bind(window);
-  window.requestAnimationFrame = function(cb){ return raf(function(t){ frames++; cb(t); }); };
+  var frames = 0, last = 0, nativeAlive = false, fb = {};
+  var nraf = window.requestAnimationFrame.bind(window), ncaf = window.cancelAnimationFrame.bind(window);
+  window.requestAnimationFrame = function(cb){
+    var fired = false;
+    var id = nraf(function(t){
+      if (!nativeAlive) { nativeAlive = true; send('native rAF alive'); }
+      if (fired) return; fired = true; delete fb[id]; frames++; cb(t);
+    });
+    if (!nativeAlive) {
+      fb[id] = setTimeout(function(){
+        if (fired) return; fired = true; delete fb[id]; frames++; cb(performance.now());
+      }, 32);
+    }
+    return id;
+  };
+  window.cancelAnimationFrame = function(id){ if (fb[id]) { clearTimeout(fb[id]); delete fb[id]; } ncaf(id); };
+  setTimeout(function(){ if (!nativeAlive) send('WARN native rAF dead after 2s, using timer fallback'); }, 2000);
   send('gpu=' + (!!navigator.gpu) + ' touch=' + ('ontouchstart' in window) + ' ua=' + navigator.userAgent.slice(0,50));
   if (navigator.gpu) {
     navigator.gpu.requestAdapter().then(function(a){ send('adapter=' + (a ? 'ok' : 'null')); }).catch(function(e){ send('adapterErr ' + e); });
   }
-  setInterval(function(){ send('hb frames=' + frames + ' (+' + (frames - last) + '/s)'); last = frames; }, 1000);
+  setInterval(function(){ send('hb frames=' + frames + ' (+' + (frames - last) + '/s) vis=' + document.visibilityState + ' native=' + nativeAlive); last = frames; }, 1000);
 })();
 """#
+
+// WKWebView only gets a live display link (requestAnimationFrame) once it is in a window,
+// so we start loading the page only after didMoveToWindow.
+final class GameWebView: WKWebView {
+    var onWindow: (() -> Void)?
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil, let f = onWindow {
+            onWindow = nil
+            DispatchQueue.main.async { f() }
+        }
+    }
+}
 
 struct WebView: UIViewRepresentable {
     let model: DebugModel
@@ -94,7 +122,7 @@ struct WebView: UIViewRepresentable {
         // no long-press image menu / Live Text / Visual Look Up on the game canvas
         config.preferences.isTextInteractionEnabled = false
 
-        let webView = WKWebView(frame: .zero, configuration: config)
+        let webView = GameWebView(frame: UIScreen.main.bounds, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.bounces = false
@@ -102,11 +130,16 @@ struct WebView: UIViewRepresentable {
         webView.allowsBackForwardNavigationGestures = false
         webView.allowsLinkPreview = false
 
-        if let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "dist") {
-            let baseURL = indexURL.deletingLastPathComponent()
-            webView.loadFileURL(indexURL, allowingReadAccessTo: baseURL.deletingLastPathComponent())
-        } else {
-            model.add("ERR dist/index.html not found in bundle")
+        let model = self.model
+        webView.onWindow = { [weak webView] in
+            guard let webView = webView else { return }
+            model.add("native: view in window, loading")
+            if let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "dist") {
+                let baseURL = indexURL.deletingLastPathComponent()
+                webView.loadFileURL(indexURL, allowingReadAccessTo: baseURL.deletingLastPathComponent())
+            } else {
+                model.add("ERR dist/index.html not found in bundle")
+            }
         }
 
         return webView
