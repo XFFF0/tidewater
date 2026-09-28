@@ -2,6 +2,7 @@ import './core/BenchSeed.js';
 import { App } from './App.js';
 import { UI } from './ui/UI.js';
 import { AppUI } from './ui/AppUI.js';
+import { TouchControls, isTouchDevice } from './ui/TouchControls.js';
 
 // ?bench runs in background tabs too (automation): rAF does not fire in a hidden page
 if ( /[?&]bench\b/.test( location.search ) ) {
@@ -32,6 +33,7 @@ app.init( ( p, text, until ) => ui.setLoading( p, text, until ) ).then( async ()
 		if ( app.qs.has( 'shots' ) ) window.__job = window.__bench.shots( app.qs.get( 'shots' ).split( ',' ), { tag: app.qs.get( 'tag' ) || 'shot', dt: Number( app.qs.get( 'dt' ) ) || 0, seq: Number( app.qs.get( 'seq' ) ) || 1, every: Number( app.qs.get( 'every' ) ) || 1 } );
 
 	} else app.start();
+	if ( isTouchDevice() ) window.__touch = new TouchControls( app.input );
 	ui.showStartOverlay( () => {
 
 		app.input.requestLock();
