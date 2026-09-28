@@ -35,6 +35,8 @@ export class TouchControls {
 
 		const style = document.createElement( 'style' );
 		style.textContent = `
+			html, body, canvas { -webkit-touch-callout: none !important; -webkit-user-select: none !important; user-select: none !important; -webkit-tap-highlight-color: transparent; touch-action: none; }
+			canvas { -webkit-user-drag: none; }
 			.tt-layer { position: fixed; inset: 0; z-index: 50; pointer-events: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 			.tt-look { position: absolute; top: 0; right: 0; width: 55%; height: 100%; pointer-events: auto; touch-action: none; }
 			.tt-stick { position: absolute; left: max(28px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.35); pointer-events: auto; touch-action: none; }

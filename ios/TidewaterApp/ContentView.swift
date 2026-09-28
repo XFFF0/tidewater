@@ -24,12 +24,17 @@ struct WebView: UIViewRepresentable {
             }
         }
 
+        // no long-press image menu / Live Text / Visual Look Up on the game canvas
+        config.preferences.isTextInteractionEnabled = false
+
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.configuration.preferences.isTextInteractionEnabled = false
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.bounces = false
         webView.scrollView.isScrollEnabled = false
         webView.allowsBackForwardNavigationGestures = false
+        webView.allowsLinkPreview = false
 
         if let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "dist") {
             let baseURL = indexURL.deletingLastPathComponent()
