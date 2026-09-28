@@ -39,6 +39,9 @@ jobs:
       - name: Regenerate Xcode project
         run: python3 ios/generate_project.py
 
+      - name: Stamp build id
+        run: /usr/libexec/PlistBuddy -c "Add :BuildSHA string ${GITHUB_SHA::7}" ios/TidewaterApp/Info.plist
+
       - name: Build unsigned .app
         working-directory: ios
         run: |
